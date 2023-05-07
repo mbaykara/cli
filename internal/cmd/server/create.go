@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/textproto"
 	"os"
@@ -16,9 +17,20 @@ import (
 	"github.com/hetznercloud/cli/internal/hcapi2"
 	"github.com/hetznercloud/cli/internal/state"
 	"github.com/hetznercloud/hcloud-go/hcloud"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh"
+)
+
+type DefaultServerValues struct {
+	Name  string `envconfig:"SERVER_NAME" default:"Mydefaultserver"`
+	Type  string `envconfig:"SERVER_TYPE" default:"cx11"`
+	Image string `envconfig:"SERVER_IMAGE" default:"ubuntu-22.04"`
+}
+
+var (
+	e DefaultServerValues
 )
 
 // CreateCmd defines a command for creating a server.
@@ -28,17 +40,17 @@ var CreateCmd = base.Cmd{
 			Use:   "create FLAGS",
 			Short: "Create a server",
 		}
+		err := envconfig.Process("DefaultServerValues", &e)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		cmd.Flags().String("name", e.Name, "Server name (required)")
 
-		cmd.Flags().String("name", "", "Server name (required)")
-		cmd.MarkFlagRequired("name")
-
-		cmd.Flags().String("type", "", "Server type (ID or name) (required)")
+		cmd.Flags().String("type", e.Type, "Server type (ID or name) (required)")
 		cmd.RegisterFlagCompletionFunc("type", cmpl.SuggestCandidatesF(client.ServerType().Names))
-		cmd.MarkFlagRequired("type")
 
-		cmd.Flags().String("image", "", "Image (ID or name) (required)")
+		cmd.Flags().String("image", e.Image, "Image (ID or name) (required)")
 		cmd.RegisterFlagCompletionFunc("image", cmpl.SuggestCandidatesF(client.Image().Names))
-		cmd.MarkFlagRequired("image")
 
 		cmd.Flags().String("location", "", "Location (ID or name)")
 		cmd.RegisterFlagCompletionFunc("location", cmpl.SuggestCandidatesF(client.Location().Names))
